@@ -1,0 +1,67 @@
+<?php
+
+namespace wpie\import\schedule;
+
+if ( ! defined( 'ABSPATH' ) ) {
+        die( __( "Can't load this file directly", 'woo-import-export' ) );
+}
+
+class Schedule_Import {
+
+        public function process_schedule( $template_id = 0 ) {
+
+                if ( absint( $template_id ) < 1 ) {
+                        return false;
+                }
+                global $wpdb;
+
+                $options = $wpdb->get_var( $wpdb->prepare( "SELECT options FROM " . $wpdb->prefix . "wpie_template where `id` = %d", absint( $template_id ) ) );
+
+                if ( ( ! $options) && empty( $options ) ) {
+
+                        wp_clear_scheduled_hook( 'wpie_cron_schedule_import', [ absint( $template_id ) ] );
+
+                        return false;
+                }
+
+                $options = maybe_unserialize( $options );
+
+                $upload_method = ( isset( $options[ 'wpie_file_upload_method' ] ) && ! empty( $options[ 'wpie_file_upload_method' ] )) ? strtolower( trim( wpie_sanitize_field( $options[ 'wpie_file_upload_method' ] ) ) ) : "";
+
+                if ( $upload_method === "wpie_import_url_file_upload" ) {
+
+                        $fileName = WPIE_IMPORT_CLASSES_DIR . '/extensions/schedule/class-schedule-url.php';
+                        if ( file_exists( $fileName ) ) {
+
+                                require_once($fileName);
+
+                                new Schedule_Url( $options );
+                        }
+                } elseif ( $upload_method === "wpie_import_existing_file_upload" ) {
+                        $fileName = WPIE_IMPORT_CLASSES_DIR . '/extensions/schedule/class-schedule-existing-file.php';
+                        if ( file_exists( $fileName ) ) {
+
+                                require_once($fileName);
+
+                                new Schedule_Existing_File( $options );
+                        }
+                } elseif ( $upload_method === "wpie_import_ftp_file_upload" ) {
+                        $fileName = WPIE_IMPORT_CLASSES_DIR . '/extensions/schedule/class-schedule-ftp.php';
+                        if ( file_exists( $fileName ) ) {
+
+                                require_once($fileName);
+
+                                new Schedule_Ftp( $options, $template_id );
+                        }
+                } else {
+                        $fileName = WPIE_IMPORT_CLASSES_DIR . '/extensions/schedule/class-schedule-local.php';
+                        if ( file_exists( $fileName ) ) {
+
+                                require_once($fileName);
+
+                                new Schedule_Local( $options, $template_id );
+                        }
+                }
+        }
+
+}
